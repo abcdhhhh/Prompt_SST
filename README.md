@@ -1,9 +1,6 @@
-You need to install OpenPrompt first:
+This project is based on OpenPrompt.
 
 ```bash
-git clone https://github.com/thunlp/OpenPrompt.git
-cd OpenPrompt
 pip install -r requirements.txt
-python setup.py
 ```
 

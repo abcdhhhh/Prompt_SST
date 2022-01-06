@@ -41,9 +41,11 @@ data_loader = PromptDataLoader(
     template=promptTemplate,
     tokenizer_wrapper_class=WrapperClass,
     batch_size=2,
+    shuffle=True,
 )
 print(len(data_loader))
 model.eval()
 for batch in data_loader:
+    print(batch["guid"])
     print(batch["label"])
     print(model(batch))

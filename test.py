@@ -1,12 +1,12 @@
-from transformers import BertTokenizer, BertForMaskedLM
+from transformers import AutoModelForMaskedLM, AutoTokenizer
 import torch
 
-tokenizer = BertTokenizer.from_pretrained('albert-base-v2')
-model = BertForMaskedLM.from_pretrained('albert-base-v2')
+model = AutoModelForMaskedLM.from_pretrained('albert-base-v2')
+tokenizer = AutoTokenizer.from_pretrained('albert-base-v2')
 
 sentence = "It is a very beautiful book."
 tokens = ['[CLS]'] + tokenizer.tokenize(sentence) + ['[SEP]']
-
+# tokens = tokenizer.tokenize(sentence)
 # i就是被mask掉的id
 for i in range(1, len(tokens) - 1):
     tmp = tokens[:i] + ['[MASK]'] + tokens[i + 1:]

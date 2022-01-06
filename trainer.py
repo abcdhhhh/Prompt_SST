@@ -1,9 +1,10 @@
 import torch
 from torch import nn
-from torch.optim import AdamW, Adam, SGD
+from torch.optim import AdamW
 from tqdm import tqdm
+from transformers import get_linear_schedule_with_warmup
 from openprompt.plms import load_plm
-from openprompt.prompts import ManualTemplate, PrefixTuningTemplate, PtuningTemplate, PTRTemplate, MixedTemplate
+from openprompt.prompts import ManualTemplate, PrefixTuningTemplate, PtuningTemplate, PTRTemplate
 from openprompt.prompts import ManualVerbalizer, AutomaticVerbalizer, KnowledgeableVerbalizer, PTRVerbalizer, GenerationVerbalizer, SoftVerbalizer
 from openprompt import PromptForClassification
 from openprompt import PromptDataLoader
@@ -50,15 +51,13 @@ print("model: ", args.MODEL)
 
 # set template
 if args.TEMPLATE == 'manual':
-    template = ManualTemplate(text='{"placeholder":"text_a"} It was {"mask"}', tokenizer=tokenizer)
+    template = ManualTemplate(text='{"placeholder":"text_a"} It was {"mask"}.', tokenizer=tokenizer)
 elif args.TEMPLATE == 'prefix':
-    template = PrefixTuningTemplate(model=plm, plm_config=plm_config, tokenizer=tokenizer)
+    template = PrefixTuningTemplate(model=plm, tokenizer=tokenizer)
 elif args.TEMPLATE == 'ptuning':
     template = PtuningTemplate(model=plm, tokenizer=tokenizer)
 elif args.TEMPLATE == 'ptr':
     template = PTRTemplate(model=plm, tokenizer=tokenizer)
-elif args.TEMPLATE == 'mixed':
-    template = MixedTemplate(model=plm, tokenizer=tokenizer)
 else:
     assert (0)
 print("template: ", args.TEMPLATE)
@@ -66,7 +65,7 @@ print("template: ", args.TEMPLATE)
 # set verbalizer
 classes = ["negative", "positive"]
 if args.VERBALIZER == 'manual':
-    verbalizer = ManualVerbalizer(tokenizer=tokenizer, classes=classes, label_words={"negative": ["bad"], "positive": ["good", "wonderful", "great"]})
+    verbalizer = ManualVerbalizer(tokenizer=tokenizer, classes=classes, label_words={"negative": ["terrible"], "positive": ["great"]})
 elif args.VERBALIZER == 'auto':
     verbalizer = AutomaticVerbalizer(tokenizer=tokenizer, classes=classes)
 elif args.VERBALIZER == 'knowledgeable':
@@ -112,20 +111,18 @@ test_dl = PromptDataLoader(
     template=template,
     tokenizer_wrapper_class=tokenizer_wrapper_class,
     batch_size=args.BATCH_SIZE,
-    shuffle=True,
 )
 print("data loader set")
 
-# set optimizer
-if args.OPTIM == 'AdamW':
-    optimizer = AdamW(model.parameters(), lr=args.LEARNING_RATE, weight_decay=args.WEIGHT_DECAY)
-elif args.OPTIM == 'Adam':
-    optimizer = Adam(model.parameters(), lr=args.LEARNING_RATE, weight_decay=args.WEIGHT_DECAY)
-elif args.OPTIM == 'SGD':
-    optimizer = SGD(model.parameters(), lr=args.LEARNING_RATE, weight_decay=args.WEIGHT_DECAY)
+# set optimizer & scheduler
+optimizer = AdamW(model.parameters(), lr=args.LEARNING_RATE, weight_decay=args.WEIGHT_DECAY)
+if args.NUM_SAMPLES == 0:
+    total_steps = 0
 else:
-    assert (0)
-print("optimizer: ", args.OPTIM)
+    total_steps = len(train_dl) * args.N_EPOCHS
+warmup_ratio = 0.1
+scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_ratio * total_steps, num_training_steps=total_steps)
+print("optimizer & scheduler set")
 
 # set loss
 loss_fn = nn.CrossEntropyLoss()
@@ -137,7 +134,7 @@ if args.NUM_SAMPLES == 0:
 else:
     for epoch in range(args.N_EPOCHS):
         print("EPOCH: ", epoch)
-        train_loop(model, train_dl, loss_fn, optimizer)
+        train_loop(model, train_dl, loss_fn, optimizer, scheduler)
         dev_loop(model, dev_dl)
 
 if args.SAVE_MODEL == 'True':
