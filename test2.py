@@ -12,6 +12,7 @@ dataset = [  # For simplicity, there's only two examples
     # text_a is the input text of the data, some other datasets may have multiple input sentences in one example.
     InputExample(guid=1, text_a="Albert Einstein was one of the greatest intellects of his time.", label=0),
     InputExample(guid=2, text_a="The film was badly made.", label=1),
+    InputExample(guid=3, text_a="The film was badly made.", label=1),
 ]
 
 plm, tokenizer, model_config, WrapperClass = load_plm("albert", "albert-base-v2")
@@ -39,7 +40,10 @@ data_loader = PromptDataLoader(
     tokenizer=tokenizer,
     template=promptTemplate,
     tokenizer_wrapper_class=WrapperClass,
+    batch_size=2,
 )
+print(len(data_loader))
+model.eval()
 for batch in data_loader:
     print(batch["label"])
     print(model(batch))

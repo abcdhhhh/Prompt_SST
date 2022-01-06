@@ -1,28 +1,25 @@
 import torch
 from torch import nn
-from torch.optim import AdamW
+from torch.optim import AdamW, Adam, SGD
+from tqdm import tqdm
 from openprompt.plms import load_plm
 from openprompt.prompts import ManualTemplate, PrefixTuningTemplate, PtuningTemplate, PTRTemplate, MixedTemplate
 from openprompt.prompts import ManualVerbalizer, AutomaticVerbalizer, KnowledgeableVerbalizer, PTRVerbalizer, GenerationVerbalizer, SoftVerbalizer
 from openprompt import PromptForClassification
 from openprompt import PromptDataLoader
-import fitlog
 from add_args import add_args
-from data_loader import get_dataset
+from data_passer import get_dataset
+from loop import train_loop, dev_loop
 
 args = add_args()
 
-# fitlog
-fitlog.set_log_dir('logs/')
-fitlog.commit(__file__)  # auto commit your codes
-fitlog.add_hyper_in_file(__file__)  # record your hyperparameters
-fitlog.add_hyper(args)
-
 # set device
 device = 0 if torch.cuda.is_available() else 'cpu'
+print("device: ", device)
 
 # prepare data
 if args.NUM_SAMPLES == 0:
+    print("No training data")
     train_data = []
 elif args.NUM_SAMPLES == 32:
     train_data = get_dataset('FewShotSST/train_32.tsv')
@@ -46,9 +43,10 @@ elif args.MODEL == 'roberta':
     plm, tokenizer, plm_config, tokenizer_wrapper_class = load_plm("roberta", "roberta-base")
 else:
     assert (0)
-for name, param in plm.named_parameters():
+for name, param in tqdm(plm.named_parameters()):
     if name.startswith(args.MODEL):
         param.requires_grad = False
+print("model: ", args.MODEL)
 
 # set template
 if args.TEMPLATE == 'manual':
@@ -61,6 +59,9 @@ elif args.TEMPLATE == 'ptr':
     template = PTRTemplate(model=plm, tokenizer=tokenizer)
 elif args.TEMPLATE == 'mixed':
     template = MixedTemplate(model=plm, tokenizer=tokenizer)
+else:
+    assert (0)
+print("template: ", args.TEMPLATE)
 
 # set verbalizer
 classes = ["negative", "positive"]
@@ -76,39 +77,68 @@ elif args.VERBALIZER == 'generation':
     verbalizer = GenerationVerbalizer(tokenizer=tokenizer, classes=classes)
 elif args.VERBALIZER == 'soft':
     verbalizer = SoftVerbalizer(tokenizer=tokenizer, classes=classes)
+else:
+    assert (0)
+print("verbalizer: ", args.VERBALIZER)
 
 # set model
 model = PromptForClassification(template=template, plm=plm, verbalizer=verbalizer)
 model = model.to(device)
+print("full model set")
 
 # set data_loader
 if args.NUM_SAMPLES == 0:
     print("No training data")
 else:
-    train_dl = PromptDataLoader(dataset=train_data, tokenizer=tokenizer, template=template, tokenizer_wrapper_class=tokenizer_wrapper_class)
-dev_dl = PromptDataLoader(dataset=dev_data, tokenizer=tokenizer, template=template, tokenizer_wrapper_class=tokenizer_wrapper_class)
-test_dl = PromptDataLoader(dataset=test_data, tokenizer=tokenizer, template=template, tokenizer_wrapper_class=tokenizer_wrapper_class)
-print("data loaders set")
+    train_dl = PromptDataLoader(
+        dataset=train_data,
+        tokenizer=tokenizer,
+        template=template,
+        tokenizer_wrapper_class=tokenizer_wrapper_class,
+        batch_size=args.BATCH_SIZE,
+        shuffle=True,
+    )
+dev_dl = PromptDataLoader(
+    dataset=dev_data,
+    tokenizer=tokenizer,
+    template=template,
+    tokenizer_wrapper_class=tokenizer_wrapper_class,
+    batch_size=args.BATCH_SIZE,
+    shuffle=True,
+)
+test_dl = PromptDataLoader(
+    dataset=test_data,
+    tokenizer=tokenizer,
+    template=template,
+    tokenizer_wrapper_class=tokenizer_wrapper_class,
+    batch_size=args.BATCH_SIZE,
+    shuffle=True,
+)
+print("data loader set")
 
 # set optimizer
-optimizer = AdamW(model.parameters(), lr=args.LEARNING_RATE, weight_decay=args.WEIGHT_DECAY)
+if args.OPTIM == 'AdamW':
+    optimizer = AdamW(model.parameters(), lr=args.LEARNING_RATE, weight_decay=args.WEIGHT_DECAY)
+elif args.OPTIM == 'Adam':
+    optimizer = Adam(model.parameters(), lr=args.LEARNING_RATE, weight_decay=args.WEIGHT_DECAY)
+elif args.OPTIM == 'SGD':
+    optimizer = SGD(model.parameters(), lr=args.LEARNING_RATE, weight_decay=args.WEIGHT_DECAY)
+else:
+    assert (0)
+print("optimizer: ", args.OPTIM)
 
 # set loss
 loss_fn = nn.CrossEntropyLoss()
 
 # train
-print("TRAIN!")
+dev_loop(model, dev_dl)
 if args.NUM_SAMPLES == 0:
     print("No training needed")
 else:
-    for batch in train_dl:
-        pred = model(batch)
-        y = batch["label"]
-        loss = loss_fn(pred, y)
-        loss.backward()
+    for epoch in range(args.N_EPOCHS):
+        print("EPOCH: ", epoch)
+        train_loop(model, train_dl, loss_fn, optimizer)
+        dev_loop(model, dev_dl)
 
 if args.SAVE_MODEL == 'True':
     print("SAVE!")
-
-# fail to use fitlog
-fitlog.finish()

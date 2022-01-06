@@ -14,5 +14,5 @@ def get_dataset(fn: str, verbose=True, test=False):
             words, target = line.split('\t')
             dataset.append(InputExample(guid=i, text_a=words, label=int(target)))
     if verbose:
-        print('Loading from %s: %d entries' % (fn, len(dataset)))
+        print('Passed from %s: %d entries' % (fn, len(dataset)))
     return dataset
