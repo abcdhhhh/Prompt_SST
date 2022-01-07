@@ -11,7 +11,7 @@ def get_df(fn: str, verbose=True):
     return df
 
 
-def get_dataloader(df, tokenizer, prompt: bool, template: str, batch_size: int, test=False):
+def get_dataloader(df, tokenizer, prompt: bool, template: str, batch_size: int, train=False, test=False):
     input_ids = []
     attention_masks = []
     for sent in df.sentence:
@@ -35,4 +35,4 @@ def get_dataloader(df, tokenizer, prompt: bool, template: str, batch_size: int, 
     else:
         labels = torch.tensor(df.label)
         dataset = TensorDataset(input_ids, attention_masks, labels)
-        return DataLoader(dataset, sampler=RandomSampler(dataset), batch_size=batch_size)
+        return DataLoader(dataset, sampler=RandomSampler(dataset) if train else SequentialSampler(dataset), batch_size=batch_size)

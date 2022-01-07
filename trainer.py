@@ -8,7 +8,7 @@ from transformers import get_linear_schedule_with_warmup
 from add_args import add_args
 from data_loader import get_df, get_dataloader
 from models import Bert, BertPrompt
-from loop import train_loop, dev_loop
+from loop import train_loop, dev_loop, test_loop
 
 args = add_args()
 
@@ -37,7 +37,7 @@ print("df prepared")
 # set tokenizer
 print('loading tokenizer ...')
 if args.MODEL == 'bert':
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    tokenizer = BertTokenizer.from_pretrained('bert-large-uncased')
 elif args.MODEL == 'albert':
     tokenizer = AlbertTokenizer.from_pretrained('albert-base-v2')
 elif args.MODEL == 'roberta':
@@ -54,16 +54,16 @@ print("preparing dataloader")
 if args.NUM_SAMPLES == 0:
     print("No training data")
 else:
-    train_dataloader = get_dataloader(train_df, tokenizer, args.PROMPT, args.TEMPLATE, batch_size=args.BATCH_SIZE)
-dev_dataloader = get_dataloader(dev_df, tokenizer, args.PROMPT, args.TEMPLATE, batch_size=args.BATCH_SIZE)
-test_dataloader = get_dataloader(test_df, tokenizer, args.PROMPT, args.TEMPLATE, batch_size=args.BATCH_SIZE, test=True)
+    train_dataloader = get_dataloader(train_df, tokenizer, args.PROMPT, args.TEMPLATE, batch_size=args.BATCH_SIZE, train=True)
+dev_dataloader = get_dataloader(dev_df, tokenizer, args.PROMPT, args.TEMPLATE, batch_size=32)
+test_dataloader = get_dataloader(test_df, tokenizer, args.PROMPT, args.TEMPLATE, batch_size=32, test=True)
 print("dataloader prepared")
 
 # set model
 print("loading model ...")
 if args.PROMPT:
     if args.MODEL == 'bert':
-        model = BertForMaskedLM.from_pretrained("bert-base-uncased")
+        model = BertForMaskedLM.from_pretrained("bert-large-uncased")
     elif args.MODEL == 'albert':
         model = AlbertForMaskedLM.from_pretrained("albert-base-v2")
     elif args.MODEL == 'roberta':
@@ -71,13 +71,13 @@ if args.PROMPT:
     model = BertPrompt(model, p_neg, p_pos, mask_id)
 else:
     if args.MODEL == 'bert':
-        model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=2, output_attentions=False, output_hidden_states=False)
+        model = BertForSequenceClassification.from_pretrained("bert-large-uncased", num_labels=2, output_attentions=False, output_hidden_states=False)
     elif args.MODEL == 'albert':
         model = AlbertForSequenceClassification.from_pretrained("albert-base-v2", num_labels=2, output_attentions=False, output_hidden_states=False)
     elif args.MODEL == 'roberta':
         model = RobertaForSequenceClassification.from_pretrained("roberta-base", num_labels=2, output_attentions=False, output_hidden_states=False)
     model = Bert(model)
-model = model.to(device)
+# model = model.to(device)
 print("model loaded")
 
 # set optimizer
@@ -92,11 +92,12 @@ else:
     print("optimizer set")
 
 # train
-print("first validation ...")
-dev_loop(model, dev_dataloader)
+
 print("start training ...")
 if args.NUM_SAMPLES == 0:
     print("No training needed")
+    print("first validation ...")
+    # dev_loop(model, dev_dataloader)
 else:
     for epoch in range(args.N_EPOCHS):
         print("EPOCH: ", epoch)
@@ -105,5 +106,6 @@ else:
 print("training completed")
 
 # save
-if args.SAVE_MODEL == 'True':
+if args.SAVE:
     print("SAVE!")
+    test_loop(model, test_dataloader, fn='FewShotSST/' + str(args.NUM_SAMPLES) + '.tsv')
