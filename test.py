@@ -1,8 +1,8 @@
-from transformers import AutoModelForMaskedLM, AutoTokenizer
+from transformers import AlbertForMaskedLM, AlbertTokenizer
 import torch
 
-model = AutoModelForMaskedLM.from_pretrained('albert-base-v2')
-tokenizer = AutoTokenizer.from_pretrained('albert-base-v2')
+model = AlbertForMaskedLM.from_pretrained('albert-base-v2')
+tokenizer = AlbertTokenizer.from_pretrained('albert-base-v2')
 
 sentence = "It is a very beautiful book."
 tokens = ['[CLS]'] + tokenizer.tokenize(sentence) + ['[SEP]']

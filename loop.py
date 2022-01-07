@@ -8,8 +8,8 @@ def train_loop(model, train_dl, loss_fn, optimizer, scheduler):
     total_loss = 0
     with tqdm(iterable=train_dl) as pbar:
         for batch in pbar:
-            pred = model(batch)
-            y = batch["label"]
+            pred = model(input_ids=batch[0], attention_mask=batch[1])
+            y = batch[2]
             loss = loss_fn(pred, y)
             total_loss += loss.item()
             optimizer.zero_grad()
@@ -27,8 +27,8 @@ def dev_loop(model, dev_dl):
         total_true = 0
         total_len = 0
         for batch in pbar:
-            pred = model(batch).argmax(dim=-1)
-            y = batch["label"]
+            pred = model(input_ids=batch[0], attention_mask=batch[1]).argmax(dim=-1)
+            y = batch[2]
             print(pred, y)
             total_true += torch.sum(pred == y).item()
             total_len += len(y)
