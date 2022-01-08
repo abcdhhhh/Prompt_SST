@@ -4,13 +4,13 @@ from tqdm import tqdm
 import pandas as pd
 
 
-def train_loop(model, train_dl, loss_fn, optimizer, scheduler):
+def train_loop(model, train_dl, loss_fn, optimizer, scheduler, device):
     model.train()
     total_loss = 0
     with tqdm(iterable=train_dl) as pbar:
         for batch in pbar:
-            pred = model(input_ids=batch[0], attention_mask=batch[1])
-            y = batch[2]
+            pred = model(input_ids=batch[0].to(device), attention_mask=batch[1].to(device))
+            y = batch[2].to(device)
             loss = loss_fn(pred, y)
             total_loss += loss.item()
             optimizer.zero_grad()
@@ -22,30 +22,31 @@ def train_loop(model, train_dl, loss_fn, optimizer, scheduler):
         print("avg_loss: ", total_loss / len(train_dl))
 
 
-def dev_loop(model, dev_dl):
+def dev_loop(model, dev_dl, device):
     model.eval()
     with tqdm(iterable=dev_dl) as pbar:
         total_true = 0
         total_len = 0
         for batch in pbar:
-            pred = model(input_ids=batch[0], attention_mask=batch[1]).argmax(dim=-1)
-            y = batch[2]
+            pred = model(input_ids=batch[0].to(device), attention_mask=batch[1].to(device)).argmax(dim=-1)
+            y = batch[2].to(device)
             # print(pred, y)
             total_true += torch.sum(pred == y).item()
             total_len += len(y)
             pbar.set_postfix({"true": total_true, "len": total_len})
         print("total_acc: ", total_true / total_len)
+        return total_true / total_len
 
 
-def test_loop(model, dev_dl, fn):
+def test_loop(model, dev_dl, fn, device):
     model.eval()
     df = []
     i = 0
     with tqdm(iterable=dev_dl) as pbar:
         for batch in pbar:
-            pred = model(input_ids=batch[0], attention_mask=batch[1]).argmax(dim=-1).tolist()
+            pred = model(input_ids=batch[0].to(device), attention_mask=batch[1].to(device)).argmax(dim=-1).tolist()
             for p in pred:
-                df.append([i, pred])
+                df.append([i, p])
                 i += 1
     df = pd.DataFrame(df, columns=['index', 'prediction'])
-    df.to_csv(fn)
+    df.to_csv(fn, sep='\t', index=False)

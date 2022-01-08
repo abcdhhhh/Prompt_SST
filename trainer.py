@@ -55,8 +55,8 @@ if args.NUM_SAMPLES == 0:
     print("No training data")
 else:
     train_dataloader = get_dataloader(train_df, tokenizer, args.PROMPT, args.TEMPLATE, batch_size=args.BATCH_SIZE, train=True)
-dev_dataloader = get_dataloader(dev_df, tokenizer, args.PROMPT, args.TEMPLATE, batch_size=32)
-test_dataloader = get_dataloader(test_df, tokenizer, args.PROMPT, args.TEMPLATE, batch_size=32, test=True)
+dev_dataloader = get_dataloader(dev_df, tokenizer, args.PROMPT, args.TEMPLATE, batch_size=args.BATCH_SIZE)
+test_dataloader = get_dataloader(test_df, tokenizer, args.PROMPT, args.TEMPLATE, batch_size=args.BATCH_SIZE, test=True)
 print("dataloader prepared")
 
 # set model
@@ -77,7 +77,7 @@ else:
     elif args.MODEL == 'roberta':
         model = RobertaForSequenceClassification.from_pretrained("roberta-base", num_labels=2, output_attentions=False, output_hidden_states=False)
     model = Bert(model)
-# model = model.to(device)
+model = model.to(device)
 print("model loaded")
 
 # set optimizer
@@ -92,20 +92,42 @@ else:
     print("optimizer set")
 
 # train
-
 print("start training ...")
+if args.SAVE:
+    fn = "model/" + str(args.NUM_SAMPLES) + str(args.PROMPT) + ".pt"
+    print("save dir: ", fn)
 if args.NUM_SAMPLES == 0:
     print("No training needed")
     print("first validation ...")
-    # dev_loop(model, dev_dataloader)
+    # dev_loop(model, dev_dataloader,device)
+    if args.SAVE:
+        torch.save(model, fn)
+        print("model saved")
 else:
+    best_acc = 0
+    es = 0
     for epoch in range(args.N_EPOCHS):
         print("EPOCH: ", epoch)
-        train_loop(model, train_dataloader, loss_fn, optimizer, scheduler)
-        dev_loop(model, dev_dataloader)
-print("training completed")
+        train_loop(model, train_dataloader, loss_fn, optimizer, scheduler, device)
+        val_acc = dev_loop(model, dev_dataloader, device)
+        if val_acc > best_acc:
+            best_acc = val_acc
+            es = 0
+            if args.SAVE:
+                torch.save(model, fn)
+                print("model saved")
+        else:
+            es += 1
+            if es > 2:
+                print("Early stopping with best_acc: ", best_acc, "and val_acc for this epoch: ", val_acc)
+                break
 
-# save
-if args.SAVE:
-    print("SAVE!")
-    test_loop(model, test_dataloader, fn='FewShotSST/' + str(args.NUM_SAMPLES) + '.tsv')
+    print("training completed")
+
+if args.TEST:
+    print("TEST!")
+    assert (args.SAVE)
+    model = torch.load(fn)
+    model = model.to(device)
+    test_loop(model, test_dataloader, fn='output/' + str(args.NUM_SAMPLES) + '.tsv', device=device)
+    print("test end")
