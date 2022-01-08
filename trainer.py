@@ -1,8 +1,8 @@
 import torch
 from torch import nn
-from transformers import BertTokenizer, AlbertTokenizer, RobertaTokenizer
-from transformers import BertForMaskedLM, AlbertForMaskedLM, RobertaForMaskedLM
-from transformers import BertForSequenceClassification, AlbertForSequenceClassification, RobertaForSequenceClassification
+from transformers import BertTokenizer, DistilBertTokenizer
+from transformers import BertForMaskedLM, DistilBertForMaskedLM
+from transformers import BertForSequenceClassification, DistilBertForSequenceClassification
 from transformers import AdamW
 from transformers import get_linear_schedule_with_warmup
 from add_args import add_args
@@ -38,10 +38,8 @@ print("df prepared")
 print('loading tokenizer ...')
 if args.MODEL == 'bert':
     tokenizer = BertTokenizer.from_pretrained('bert-large-uncased')
-elif args.MODEL == 'albert':
-    tokenizer = AlbertTokenizer.from_pretrained('albert-base-v2')
-elif args.MODEL == 'roberta':
-    tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+elif args.MODEL == 'distilbert':
+    tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
 else:
     assert (0)
 sentence = test_df.sentence[0]
@@ -64,18 +62,16 @@ print("loading model ...")
 if args.PROMPT:
     if args.MODEL == 'bert':
         model = BertForMaskedLM.from_pretrained("bert-large-uncased")
-    elif args.MODEL == 'albert':
-        model = AlbertForMaskedLM.from_pretrained("albert-base-v2")
-    elif args.MODEL == 'roberta':
-        model = RobertaForMaskedLM.from_pretrained("roberta-base")
+    elif args.MODEL == 'distilbert':
+        model = DistilBertForMaskedLM.from_pretrained("distilbert-base-uncased")
     model = BertPrompt(model, p_neg, p_pos, mask_id)
 else:
     if args.MODEL == 'bert':
         model = BertForSequenceClassification.from_pretrained("bert-large-uncased", num_labels=2, output_attentions=False, output_hidden_states=False)
-    elif args.MODEL == 'albert':
-        model = AlbertForSequenceClassification.from_pretrained("albert-base-v2", num_labels=2, output_attentions=False, output_hidden_states=False)
-    elif args.MODEL == 'roberta':
-        model = RobertaForSequenceClassification.from_pretrained("roberta-base", num_labels=2, output_attentions=False, output_hidden_states=False)
+    elif args.MODEL == 'distilbert':
+        model = DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased", num_labels=2, output_attentions=False, output_hidden_states=False)
+    else:
+        assert (0)
     model = Bert(model)
 model = model.to(device)
 print("model loaded")
@@ -99,7 +95,7 @@ if args.SAVE:
 if args.NUM_SAMPLES == 0:
     print("No training needed")
     print("first validation ...")
-    # dev_loop(model, dev_dataloader,device)
+    dev_loop(model, dev_dataloader, device)
     if args.SAVE:
         torch.save(model, fn)
         print("model saved")

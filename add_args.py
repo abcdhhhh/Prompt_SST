@@ -6,7 +6,7 @@ def add_args():
     add_arg = parser.add_argument
     add_arg('--N_EPOCHS', type=int, default=16)
     add_arg('--BATCH_SIZE', type=int, default=8)
-    add_arg('--MODEL', type=str, choices=['bert', 'albert', 'roberta'], default='bert')
+    add_arg('--MODEL', type=str, choices=['bert', 'distilbert'], default='bert')
     add_arg('--PROMPT', type=bool, default=True)
     add_arg('--TEMPLATE', type=str, default="%s It's really [MASK].")
     add_arg('--V_NEG', type=str, default='awful')
