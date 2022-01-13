@@ -11,7 +11,7 @@ The dataset is `./FewShotSST/` .
 And if you run the command
 
 ```bash
-python trainer.py --NUM_SAMPLES=32 --TEST --SAVE
+python trainer.py --NUM_SAMPLES=32 --SAVE=True --TEST=True
 ```
 
 The predictions of `./FewShotSST/test.tsv` will be saved in `./output/32.tsv` .

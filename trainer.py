@@ -1,8 +1,8 @@
 import torch
 from torch import nn
-from transformers import BertTokenizer, DistilBertTokenizer
-from transformers import BertForMaskedLM, DistilBertForMaskedLM
-from transformers import BertForSequenceClassification, DistilBertForSequenceClassification
+from transformers import BertTokenizer, DistilBertTokenizer, RobertaTokenizer
+from transformers import BertForMaskedLM, DistilBertForMaskedLM, RobertaForMaskedLM
+from transformers import BertForSequenceClassification, DistilBertForSequenceClassification, RobertaForSequenceClassification
 from transformers import AdamW
 from transformers import get_linear_schedule_with_warmup
 from add_args import add_args
@@ -34,17 +34,26 @@ dev_df = get_df('FewShotSST/dev.tsv')
 test_df = get_df('FewShotSST/test.tsv')
 print("df prepared")
 
+# set pretrain
+pretrain = {'bert': 'bert-large-uncased', 'distilbert': 'distilbert-base-uncased', 'roberta': 'roberta-large'}
+
 # set tokenizer
 print('loading tokenizer ...')
 if args.MODEL == 'bert':
-    tokenizer = BertTokenizer.from_pretrained('bert-large-uncased')
+    tokenizer = BertTokenizer.from_pretrained(pretrain[args.MODEL])
 elif args.MODEL == 'distilbert':
-    tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+    tokenizer = DistilBertTokenizer.from_pretrained(pretrain[args.MODEL])
+elif args.MODEL == 'roberta':
+    tokenizer = RobertaTokenizer.from_pretrained(pretrain[args.MODEL])
 else:
     assert (0)
 sentence = test_df.sentence[0]
 print("tokenizer loaded")
-mask_id, p_neg, p_pos = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(' [MASK] ' + args.V_NEG + ' ' + args.V_POS))
+if args.MODEL in ['bert', 'distilbert']:
+    mask = '[MASK]'
+elif args.MODEL in ['roberta']:
+    mask = '<mask>'
+mask_id, p_neg, p_pos = tokenizer.convert_tokens_to_ids([mask, args.V_NEG, args.V_POS])
 print("mask_id, p_neg, p_pos: ", mask_id, p_neg, p_pos)
 
 # prepare dl
@@ -52,26 +61,28 @@ print("preparing dataloader")
 if args.NUM_SAMPLES == 0:
     print("No training data")
 else:
-    train_dataloader = get_dataloader(train_df, tokenizer, args.PROMPT, args.TEMPLATE, batch_size=args.BATCH_SIZE, train=True)
-dev_dataloader = get_dataloader(dev_df, tokenizer, args.PROMPT, args.TEMPLATE, batch_size=args.BATCH_SIZE)
-test_dataloader = get_dataloader(test_df, tokenizer, args.PROMPT, args.TEMPLATE, batch_size=args.BATCH_SIZE, test=True)
+    train_dataloader = get_dataloader(train_df, tokenizer, args.PROMPT, args.TEMPLATE % ('%s', mask), batch_size=args.BATCH_SIZE, train=True)
+dev_dataloader = get_dataloader(dev_df, tokenizer, args.PROMPT, args.TEMPLATE % ('%s', mask), batch_size=args.BATCH_SIZE)
+test_dataloader = get_dataloader(test_df, tokenizer, args.PROMPT, args.TEMPLATE % ('%s', mask), batch_size=args.BATCH_SIZE, test=True)
 print("dataloader prepared")
 
 # set model
 print("loading model ...")
 if args.PROMPT:
     if args.MODEL == 'bert':
-        model = BertForMaskedLM.from_pretrained("bert-large-uncased")
+        model = BertForMaskedLM.from_pretrained(pretrain[args.MODEL])
     elif args.MODEL == 'distilbert':
-        model = DistilBertForMaskedLM.from_pretrained("distilbert-base-uncased")
+        model = DistilBertForMaskedLM.from_pretrained(pretrain[args.MODEL])
+    elif args.MODEL == 'roberta':
+        model = RobertaForMaskedLM.from_pretrained(pretrain[args.MODEL])
     model = BertPrompt(model, p_neg, p_pos, mask_id)
 else:
     if args.MODEL == 'bert':
-        model = BertForSequenceClassification.from_pretrained("bert-large-uncased", num_labels=2, output_attentions=False, output_hidden_states=False)
+        model = BertForSequenceClassification.from_pretrained(pretrain[args.MODEL], num_labels=2, output_attentions=False, output_hidden_states=False)
     elif args.MODEL == 'distilbert':
-        model = DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased", num_labels=2, output_attentions=False, output_hidden_states=False)
-    else:
-        assert (0)
+        model = DistilBertForSequenceClassification.from_pretrained(pretrain[args.MODEL], num_labels=2, output_attentions=False, output_hidden_states=False)
+    elif args.MODEL == 'roberta':
+        model = RobertaForSequenceClassification.from_pretrained(pretrain[args.MODEL], num_labels=2, output_attentions=False, output_hidden_states=False)
     model = Bert(model)
 model = model.to(device)
 print("model loaded")
