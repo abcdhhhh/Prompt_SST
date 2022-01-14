@@ -53,7 +53,9 @@ if args.MODEL in ['bert', 'distilbert']:
     mask = '[MASK]'
 elif args.MODEL in ['roberta']:
     mask = '<mask>'
-mask_id, p_neg, p_pos = tokenizer.convert_tokens_to_ids([mask, args.V_NEG, args.V_POS])
+mask_id = tokenizer.convert_tokens_to_ids(mask)
+p_neg = tokenizer.convert_tokens_to_ids(args.V_NEG)
+p_pos = tokenizer.convert_tokens_to_ids(args.V_POS)
 print("mask_id, p_neg, p_pos: ", mask_id, p_neg, p_pos)
 
 # prepare dl

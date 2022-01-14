@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class BertPrompt(nn.Module):
-    def __init__(self, model, p_neg, p_pos, mask_id):
+    def __init__(self, model, p_neg: list, p_pos: list, mask_id: int):
         super().__init__()
         self.model = model
         self.p_neg = p_neg
@@ -14,7 +14,7 @@ class BertPrompt(nn.Module):
         logits = self.model(input_ids=input_ids, attention_mask=attention_mask).logits
         pos = (input_ids == self.mask_id)
         logits = logits[pos]
-        return torch.cat([logits[:, self.p_neg].unsqueeze(-1), logits[:, self.p_pos].unsqueeze(-1)], dim=-1)
+        return torch.cat([logits[:, self.p_neg].mean(dim=-1).unsqueeze(-1), logits[:, self.p_pos].mean(dim=-1).unsqueeze(-1)], dim=-1)
 
 
 class Bert(nn.Module):
