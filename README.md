@@ -16,3 +16,5 @@ python trainer.py --NUM_SAMPLES=32 --SAVE=True --TEST=True
 
 The predictions of `./FewShotSST/test.tsv` will be saved in `./output/32.tsv` .
 
+Must save before test.
+

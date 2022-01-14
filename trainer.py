@@ -9,6 +9,7 @@ from add_args import add_args
 from data_loader import get_df, get_dataloader
 from models import Bert, BertPrompt
 from loop import train_loop, dev_loop, test_loop
+import matplotlib.pyplot as plt
 
 args = add_args()
 
@@ -104,7 +105,8 @@ else:
 print("start training ...")
 if args.SAVE:
     fn = "model/" + str(args.NUM_SAMPLES) + str(args.PROMPT) + ".pt"
-    print("save dir: ", fn)
+    print("model save dir: ", fn)
+
 if args.NUM_SAMPLES == 0:
     print("No training needed")
     print("first validation ...")
@@ -115,10 +117,14 @@ if args.NUM_SAMPLES == 0:
 else:
     best_acc = 0
     es = 0
+    loss_list = []
+    acc_list = []
     for epoch in range(args.N_EPOCHS):
         print("EPOCH: ", epoch)
-        train_loop(model, train_dataloader, loss_fn, optimizer, scheduler, device)
+        loss = train_loop(model, train_dataloader, loss_fn, optimizer, scheduler, device)
         val_acc = dev_loop(model, dev_dataloader, device)
+        loss_list.append(loss)
+        acc_list.append(val_acc)
         if val_acc > best_acc:
             best_acc = val_acc
             es = 0
@@ -130,8 +136,18 @@ else:
             if es > 2:
                 print("Early stopping with best_acc: ", best_acc, "and val_acc for this epoch: ", val_acc)
                 break
-
     print("training completed")
+    # plot
+    if args.PLOT:
+        fn = "model/" + str(args.NUM_SAMPLES) + str(args.PROMPT) + ".png"
+        print("plot save dir: ", fn)
+        print("PLOT!")
+        plt.xlabel("epoch")
+        plt.plot(loss_list, label="loss")
+        plt.plot(acc_list, label="acc")
+        plt.legend()
+        plt.savefig(fn)
+        print("plot saved")
 
 if args.TEST:
     print("TEST!")

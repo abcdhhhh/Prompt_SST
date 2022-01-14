@@ -19,7 +19,9 @@ def train_loop(model, train_dl, loss_fn, optimizer, scheduler, device):
             optimizer.step()
             scheduler.step()
             pbar.set_postfix({"loss": loss})
-        print("avg_loss: ", total_loss / len(train_dl))
+        avg_loss = total_loss / len(train_dl)
+        print("avg_loss: ", avg_loss)
+        return avg_loss
 
 
 def dev_loop(model, dev_dl, device):
