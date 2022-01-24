@@ -1,4 +1,8 @@
-This project is based on BERT. (https://huggingface.co/docs/transformers/model_doc/bert)
+## Zero-shot and Few-shot Learning based on Prompt
+
+This project implements Prompt for SST-2.
+
+The project is based on BERT. (https://huggingface.co/docs/transformers/model_doc/bert)
 
 Please install the packages before training.
 
